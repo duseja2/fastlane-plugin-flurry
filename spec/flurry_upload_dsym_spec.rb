@@ -39,6 +39,16 @@ describe Fastlane do
           end").runner.execute(:test)
       end
 
+      it "uploads dSYM.zip files" do
+        dsym_path_1 = './fastlane-plugin-flurry/spec/fixtures/dSYM/zipped/Example.app.dSYM.zip'
+        Fastlane::FastFile.new.parse("lane :test do
+            flurry_upload_dsym(
+              api_key: 'good_api_key',
+              auth_token: 'good_auth_token',
+              dsym_path: '#{dsym_path_1}')
+          end").runner.execute(:test)
+      end
+
       it "fails with a bad auth_token" do
         dsym_path_1 = './fastlane-plugin-flurry/spec/fixtures/dSYM/Example.app.dSYM'
         expect do

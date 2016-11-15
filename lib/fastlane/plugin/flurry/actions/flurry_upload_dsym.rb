@@ -17,11 +17,29 @@ module Fastlane
         # Params - dSYM
         dsym_path = params[:dsym_path]
         project_id = find_project(api_key, auth_token)
+
+        if dsym_path.end_with?('.zip')
+          UI.message("Extracting '#{dsym_path}'...")
+          dsym_path = unzip_file(dsym_path)
+        end
+
         tar_zip_file = tar_zip_file(dsym_path)
         upload_id = create_upload(tar_zip_file.size, project_id, auth_token)
         send_to_upload_service(tar_zip_file.path, project_id, upload_id, auth_token)
         check_upload_status(project_id, upload_id, auth_token, timeout_in_s)
         UI.message "Successfully Uploaded the provided dSYMs to Flurry."
+      end
+
+      def self.unzip_file (file)
+        dir = Dir.mktmpdir
+        Zip::File.open(file) do |zip_file|
+          zip_file.each do |f|
+            f_path=File.join(dir, f.name)
+            FileUtils.mkdir_p(File.dirname(f_path))
+            zip_file.extract(f, f_path) unless File.exist?(f_path)
+          end
+        end
+        dir
       end
 
       def self.find_project(api_key, auth_token)
@@ -64,7 +82,7 @@ module Fastlane
           end
         end
         tarfile.rewind
-        tarfile
+        return tarfile
       end
 
       def self.gzip_file(tar_file)
@@ -159,10 +177,11 @@ module Fastlane
             FastlaneCore::ConfigItem.new(key: :dsym_path,
                                          env_name: 'FLURRY_DSYM_PATH',
                                          description: 'Path to the DSYM file to upload',
+                                         default_value: Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH],
                                          optional: true,
                                          verify_block: proc do |value|
                                            UI.user_error!("Couldn't find file at path '#{File.expand_path(value)}'") unless File.exist?(value)
-                                           UI.user_error!('Symbolication file needs to be dSYM') unless value.end_with?('.dSYM')
+                                           UI.user_error!('Symbolication file needs to be dSYM or zip') unless value.end_with?('.dSYM', '.zip')
                                          end),
             FastlaneCore::ConfigItem.new(key: :timeout_in_s,
                                          env_name: 'TIMEOUT_IN_S',
@@ -185,7 +204,7 @@ module Fastlane
             'upload_symbols_to_flurry(
             api_key: "...",
             auth_token: "...",
-            dsym_path: "./App.dSYM"
+            dsym_path: "./App.dSYM.zip"
           )'
         ]
       end

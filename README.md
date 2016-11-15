@@ -18,7 +18,7 @@ This action allows you to upload symbolication files to Flurry.
 flurry_upload_dsym(
   api_key: '...',
   auth_token: '...',
-  dsym_path: './Example.app.dSYM'
+  dsym_path: './Example.app.dSYM.zip'
 )
 ```
 
