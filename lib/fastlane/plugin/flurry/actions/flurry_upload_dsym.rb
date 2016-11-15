@@ -66,7 +66,7 @@ module Fastlane
       end
 
       def self.tar_file(dsym_path)
-        tarfile = StringIO.new("")
+        tarfile = StringIO.new("new.tar")
         Gem::Package::TarWriter.new(tarfile) do |tar|
           Dir[File.join(dsym_path, "**/*")].each do |file|
             mode = File.stat(file).mode
