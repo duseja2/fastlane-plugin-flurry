@@ -24,6 +24,35 @@ flurry_upload_dsym(
 
 The following environment variables may be used in place of parameters: `FLURRY_API_KEY`, `FLURRY_AUTH_TOKEN`, and `FLURRY_DSYM_PATH`.
 
+## Example Fastfile
+```
+fastlane_version "1.108.0"
+ 
+default_platform :ios
+ 
+platform :ios do
+ 
+  ENV['FLURRY_AUTH_TOKEN'] = '<Put-Token-Here>'
+  ENV['FLURRY_API_KEY'] = '<Put-API-Key-Here>' # Use your own API Key Here
+  
+  desc "Build for non-bitcode enabled apps. Includes uploading dSYMs"
+  lane :build do
+    cert
+    sigh
+    gym(scheme: "AppName")
+    flurry_upload_dsym
+    clean_build_artifacts
+  end
+  
+  desc "Upload dSYMs for bitcode enabled apps"
+  lane :upload_symbols do
+    download_dsyms
+    flurry_upload_dsym
+    clean_build_artifacts
+  end
+end
+```
+
 ## Issues and Feedback
 
 For any other issues and feedback about this plugin, please submit it to this repository.
