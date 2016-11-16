@@ -114,23 +114,21 @@ module Fastlane
       end
 
       def self.check_upload_status(project_id, upload_id, auth_token, max_duration_seconds)
-        upload_status = nil
-        json_response = nil
         time_elapsed = 0
-        while upload_status != "COMPLETED" && upload_status != "FAILED" do
-          if time_elapsed > max_duration_seconds.to_i
-            UI.user_error! "Timed out after #{time_elapsed} seconds while uploading the provided dSYMs to Flurry"
-          end
-          sleep 2
-          time_elapsed += 2
+        while time_elapsed < max_duration_seconds.to_i do
           response = RestClient.get "#{METADATA_BASE_URL}/project/#{project_id}/uploads/#{upload_id}?fields[upload]=uploadStatus,failureReason", get_metadata_headers(auth_token)
           json_response = JSON.parse(response.body)
           upload_status = json_response["data"]["attributes"]["uploadStatus"]
+          if upload_status == "COMPLETED"
+            return
+          elsif upload_status == "FAILED"
+            reason = json_response["data"]["attributes"]["failureReason"]
+            UI.user_error! "Failed to upload the provided dSYMs to Flurry with the following reason: #{reason}"
+          end
+          sleep 2
+          time_elapsed += 2
         end
-        if upload_status == "FAILED"
-          reason = json_response["data"]["attributes"]["failureReason"]
-          UI.user_error! "Failed to upload the provided dSYMs to Flurry with the following reason: #{reason}"
-        end
+        UI.user_error! "Timed out after #{time_elapsed} seconds while uploading the provided dSYMs to Flurry"
       end
 
       def self.get_metadata_headers(auth_token)
@@ -162,14 +160,12 @@ module Fastlane
         [
             FastlaneCore::ConfigItem.new(key: :api_key,
                                          env_name: 'FLURRY_API_KEY',
-                                         optional: true,
                                          description: 'Flurry API Key',
                                          verify_block: proc do |value|
                                            UI.user_error!("No API Key for Flurry given, pass using `api_key: 'apiKey'`") if value.to_s.length == 0
                                          end),
             FastlaneCore::ConfigItem.new(key: :auth_token,
                                          env_name: 'FLURRY_AUTH_TOKEN',
-                                         optional: true,
                                          description: 'Flurry Auth Token',
                                          verify_block: proc do |value|
                                            UI.user_error!("No Auth Token for Flurry given, pass using `auth_token: 'token'`") if value.to_s.length == 0
@@ -178,7 +174,6 @@ module Fastlane
                                          env_name: 'FLURRY_DSYM_PATH',
                                          description: 'Path to the DSYM file to upload',
                                          default_value: Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH],
-                                         optional: true,
                                          verify_block: proc do |value|
                                            UI.user_error!("Couldn't find file at path '#{File.expand_path(value)}'") unless File.exist?(value)
                                            UI.user_error!('Symbolication file needs to be dSYM or zip') unless value.end_with?('.dSYM', '.zip')
@@ -201,7 +196,7 @@ module Fastlane
 
       def self.example_code
         [
-            'upload_symbols_to_flurry(
+            'flurry_upload_dsym(
             api_key: "...",
             auth_token: "...",
             dsym_path: "./App.dSYM.zip"
